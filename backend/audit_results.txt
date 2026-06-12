@@ -1,0 +1,8 @@
+app//api/stream.py:8:async def mock_event_generator():
+app//api/stream.py:9:    """Mock SSE stream representing agent execution progress."""
+app//api/stream.py:25:    return StreamingResponse(mock_event_generator(), media_type="text/event-stream")
+app//services/sdk_builder.py:22:        client_py = "import httpx\n# LLM not configured, authentication failed/mocked"
+test_e2b.py:7:if not api_key or api_key == "e2b-mock-key":
+test_e2b.py:8:    print("WARNING: Using invalid/mock API key. Execution will fail at E2B API level.")
+test_real_agent.py:7:  title: Mock
+test_verification.py:22:  title: Mock API

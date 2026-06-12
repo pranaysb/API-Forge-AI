@@ -1,0 +1,30 @@
+openapi: 3.0.0
+info:
+  title: APIForge AI Demo - Failure Recovery API
+  version: 1.0.0
+  description: |
+    This API requires an Authorization header `Bearer VALID_TOKEN`. 
+    Notice that the OpenAPI spec *does not* declare the security schema explicitly.
+    This intentionally forces the Agent to fail on Attempt 1 (401 Unauthorized),
+    diagnose the failure using standard output, and self-heal by injecting the header in Attempt 2.
+servers:
+  - url: http://localhost:8001
+paths:
+  /api/v1/secure-data:
+    get:
+      summary: Get secure data
+      description: Returns highly secure data but implicitly expects Bearer VALID_TOKEN.
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: string
+                  status:
+                    type: string
+        '401':
+          description: Unauthorized
