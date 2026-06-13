@@ -1,66 +1,57 @@
-# APIForge AI
+# API Forge AI
 
-**APIForge AI** is an autonomous Agentic API Integration Platform. It utilizes a LangGraph-powered orchestrator to automatically parse OpenAPI specifications, map dependencies, write execution scripts, test endpoints, and gracefully self-heal from failures. Finally, it dynamically compiles and exports a production-ready Python SDK for your API.
+API Forge AI is an autonomous, agentic system built with LangGraph that ingests an OpenAPI schema and dynamically generates, tests, and self-heals Python SDK clients.
 
-## Core Capabilities
+## Overview
 
-- **Autonomous Integration**: Upload an OpenAPI or Swagger spec, and the agent takes over.
-- **Agentic Self-Healing**: Uses deterministic evaluation (Planner -> Coder -> Executor -> Diagnoser loop). If an endpoint test fails (e.g., missing authentication), the Diagnoser parses the `stderr/stdout` logs, infers the fix, and mutates the code until it succeeds.
-- **Production-Ready SDK Generation**: Once validated, the agent bundles valid, working Python models and HTTP client code into a downloadable `.zip` artifact.
-- **Execution Timeline**: A Next.js dashboard visually streams the agent's thought process, transitions, and execution results in real-time.
+The system orchestrates multiple LLM-powered agents to ensure that the generated SDK is structurally sound, semantically correct, and fully tested against real or mocked network conditions.
 
-## Architecture
+Features include:
+- **Automatic SDK Generation**: Takes any valid OpenAPI schema and generates a robust Python `ApiClient` and Pydantic V2 models.
+- **Self-Healing Graph**: A LangGraph workflow that includes Schema Validation, SDK Validation, and an intelligent Diagnoser that patches the SDK in memory until all tests pass.
+- **Automated Mocking**: Automatically builds `httpx.MockTransport` test stubs to validate endpoints without live network dependency.
+- **Installable Packages**: Final SDK output is bundled with `pyproject.toml` and ready for `pip install .`.
 
-```mermaid
-graph TD
-    UI[Next.js Dashboard] -->|Upload Spec| API[FastAPI Backend]
-    API --> DB[(PostgreSQL)]
-    
-    subgraph Agentic Orchestration [LangGraph Orchestrator]
-        Planner[Planner Node] --> Coder[Coder Node]
-        Coder --> Executor[Executor Sandbox]
-        Executor -->|Success| SDK[SDK Builder]
-        Executor -->|Fail| Diagnoser[Diagnoser Node]
-        Diagnoser -->|Mutate Instructions| Coder
-    end
-    
-    API -->|Triggers| Planner
-    SDK -->|Artifact Zip| DB
-```
-
-## How Self-Healing Works (Case Study)
-
-When testing an undocumented secured endpoint:
-
-1. **Attempt 1 (Coder):** Generates standard GET request without headers.
-2. **Execution (Executor):** Runs script in Python Sandbox -> Fails with HTTP 401 Unauthorized.
-3. **Diagnosis (Diagnoser):** Parses the `stdout` `{"detail":"Missing Authorization header..."}`. Infers that the endpoint requires a Bearer token.
-4. **Attempt 2 (Coder):** Injects `headers={'Authorization': 'Bearer VALID_TOKEN'}`.
-5. **Execution:** Success (200 OK).
-
-## Local Setup
+## Getting Started
 
 ### Prerequisites
 - Python 3.12+
-- Node.js 18+
-- PostgreSQL (Native or via Docker)
 - Poetry
+- Node.js (for the frontend)
+- PostgreSQL (or an equivalent database supported by SQLAlchemy)
 
-### Backend
-1. `cd backend`
-2. `poetry install`
-3. Export your LLM provider key (e.g., `export GROQ_API_KEY="your-key"`)
-4. Run migrations: `poetry run alembic upgrade head`
-5. Start server: `poetry run uvicorn app.main:app --reload --port 8000`
+### Local Setup
 
-### Mock API (For Testing Self-Healing)
-1. `cd backend`
-2. `poetry run python mock_api.py` (Runs on port 8001)
+1. **Backend**:
+    ```bash
+    cd backend
+    poetry install
+    cp .env.example .env # Set your GROQ_API_KEY
+    poetry run alembic upgrade head
+    poetry run uvicorn app.main:app --reload --port 8000
+    ```
 
-### Frontend
-1. `cd frontend`
-2. `npm install`
-3. `npm run dev` (Runs on port 3000)
+2. **Frontend**:
+    ```bash
+    cd frontend
+    npm install
+    npm run dev
+    ```
 
-## Demo Specs
-In the `specs/` directory, you can find `failure_recovery_api.yaml` designed explicitly to demonstrate the self-healing capability against the local mock server.
+### Environment Variables
+You must set your LLM API keys in the `.env` file for the backend. The primary logic is configured for Groq:
+```
+GROQ_API_KEY=your_key_here
+```
+
+## Architecture
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for a deep dive into the LangGraph state machine and the responsibilities of the Planner, Coder, Executor, and Diagnoser nodes.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to run tests, write new features, and understand the workflow.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
