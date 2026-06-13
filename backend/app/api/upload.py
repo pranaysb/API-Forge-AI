@@ -1,14 +1,26 @@
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.models.domain import Project, IntegrationJob
 from app.services.openapi_parser import parse_spec_content, extract_endpoints
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 @router.post("/upload")
-async def upload_spec(file: UploadFile = File(...), project_name: str = "Demo Project", db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+async def upload_spec(request: Request, file: UploadFile = File(...), project_name: str = "Demo Project", db: Session = Depends(get_db)):
+    if file.size and file.size > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large. Maximum allowed size is 10MB.")
+    
     content = await file.read()
+    
+    # Also verify if file.size was missing
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large. Maximum allowed size is 10MB.")
+        
     try:
         content_str = content.decode("utf-8")
         parsed_json = parse_spec_content(content_str)
