@@ -1,2 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
 .env
 **/.env
+.venv/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Poetry
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs & Databases
+*.log
+*.sqlite
+*.sqlite3
+*.db
+backend/apiforge.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Node
+node_modules/
+dist/
+build/
+.npm/
+
+# Generated SDKs and Outputs
+backend/apiforge_sdk/
+backend/*.zip
+backend/*_state.txt
+backend/audit_results*.txt
+*.pdf
+backend/specs/*.json
+backend/tiny_spec.json
+backend/large_spec.json
+backend/scripts/
