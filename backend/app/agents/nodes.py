@@ -1,12 +1,11 @@
 from app.agents.state import AgentState
 from app.services.llm_factory import get_llm
+from app.services.reliability import ReliabilityManager
 from app.core.config import settings
 from pydantic import BaseModel, Field
 from app.services.executor import get_executor
 from langchain_core.prompts import ChatPromptTemplate
 import ast
-
-llm = get_llm(provider="GROQ", model_name="llama-3.3-70b-versatile")
 
 class PlannerOutput(BaseModel):
     reasoning: str = Field(description="Reasoning about the SDK structure and models.")
@@ -30,21 +29,20 @@ class SchemaValidatorOutput(BaseModel):
 
 def planner_node(state: AgentState) -> dict:
     """Analyzes spec and determines execution order."""
-    if not llm: return {"errors": ["No LLM configured."]}
     
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are an expert Python SDK Generator. Analyze the OpenAPI spec and generate the foundational SDK code. Generate complete, production-ready code for `client.py` using httpx and `models.py` using Pydantic based on the endpoints. MUST USE Pydantic v2 (`model_validate`, not `parse_obj` or `**kwargs` or `User(**item)`). The client methods MUST return the instantiated Pydantic models (e.g., `return [User.model_validate(item) for item in response.json()]`). You MUST include `response.raise_for_status()` after every request. You MUST add a default `timeout=10.0` configuration to the ApiClient initialization. You MUST use relative imports inside the package (e.g., `from .models import User`). Generate fully nested Pydantic models for ALL nested JSON objects (e.g., if a User has an Address or Company, you MUST define `Address` and `Company` models instead of using `dict`). Generate `__init__.py` that explicitly defines `__all__ = [...]` (this is mandatory) and exports all generated models and the client without wildcard imports."),
+        ("system", "You are an expert Python SDK Generator. Analyze the OpenAPI spec and generate the foundational SDK code. Generate complete, production-ready code for `client.py` using httpx and `models.py` using Pydantic based on the endpoints. MUST USE Pydantic v2 (`model_validate`, not `parse_obj` or `**kwargs` or `User(**item)`). When configuring Pydantic models, you MUST use Pydantic V2 `model_config = ConfigDict(populate_by_name=True, extra='forbid')` as a direct class attribute, and NEVER use the Pydantic V1 `class Config:` block. Make sure to import `ConfigDict` from `pydantic`. The client methods MUST return the instantiated Pydantic models (e.g., `return [User.model_validate(item) for item in response.json()]`). You MUST include `response.raise_for_status()` after every request. You MUST add a default `timeout=10.0` configuration to the ApiClient initialization. You MUST use relative imports inside the package (e.g., `from .models import User`). Generate fully nested Pydantic models for ALL nested JSON objects (e.g., if a User has an Address or Company, you MUST define `Address` and `Company` models instead of using `dict`). Generate `__init__.py` that explicitly defines `__all__ = [...]` (this is mandatory) and exports all generated models and the client without wildcard imports."),
         ("user", "OpenAPI Spec:\n{spec_content}\nBase URL: {base_url}\nEndpoints: {endpoints}")
     ])
     
-    chain = prompt | llm.with_structured_output(PlannerOutput)
-    
     try:
-        result = chain.invoke({
+        input_vars = {
             "spec_content": state.get("spec_content", ""),
             "base_url": state.get("base_url", ""),
             "endpoints": [f"{ep.get('method')} {ep.get('path')}" for ep in state.get("endpoints", [])]
-        })
+        }
+        
+        result, updates = ReliabilityManager.invoke(prompt, PlannerOutput, input_vars, state)
         
         sdk_files = {
             "client.py": result.client_code,
@@ -52,7 +50,7 @@ def planner_node(state: AgentState) -> dict:
             "__init__.py": result.init_code
         }
         
-        return {"current_endpoint_index": 0, "sdk_files": sdk_files}
+        return {"current_endpoint_index": 0, "sdk_files": sdk_files, **updates}
     except Exception as e:
         return {"errors": [f"Planner error: {str(e)}"], "current_endpoint_index": 0, "sdk_files": {}}
 
@@ -129,7 +127,7 @@ def schema_validator_node(state: AgentState) -> dict:
     """Fetches a real API sample and runs model_validate against it."""
     idx = state.get("current_endpoint_index", 0)
     endpoints = state.get("endpoints", [])
-    if idx >= len(endpoints) or not llm:
+    if idx >= len(endpoints):
         return {}
     
     current_ep = endpoints[idx]
@@ -137,27 +135,34 @@ def schema_validator_node(state: AgentState) -> dict:
     if current_ep.get("schema_validated"):
         return {"endpoints": endpoints}
         
+    if current_ep.get("status") == "FAILED_PERMANENTLY":
+        return {"current_endpoint_index": idx + 1, "endpoints": endpoints}
+        
     prompt = ChatPromptTemplate.from_messages([
         ("system", "You are a Schema Validator. Write a short Python script to fetch a sample payload from the API and validate it using the generated Pydantic models. Use `httpx.get` (or appropriate method). Do NOT use the generated ApiClient, just raw httpx. Import the correct model from `apiforge_sdk.models` and run `Model.model_validate(item)`. If it's a list, validate one item. Do not use markdown blocks, just raw python string."),
         ("user", "Endpoint: {method} {path}\nBase URL: {base_url}\nModels:\n{models_py}")
     ])
     
-    chain = prompt | llm.with_structured_output(SchemaValidatorOutput)
-    
     try:
         sdk_files = state.get("sdk_files", {})
-        result = chain.invoke({
+        input_vars = {
             "method": current_ep.get("method"),
             "path": current_ep.get("path"),
             "base_url": state.get("base_url"),
             "models_py": sdk_files.get("models.py", "")
-        })
+        }
+        
+        result, updates = ReliabilityManager.invoke(prompt, SchemaValidatorOutput, input_vars, state)
         
         executor = get_executor()
         success, stdout, stderr = executor.execute_sdk_test(sdk_files, result.python_code)
         
         if success:
+            current_ep["status"] = "SCHEMA_VALIDATED"
             current_ep["schema_validated"] = True
+            current_ep["execution_stdout"] = stdout
+            current_ep["execution_stderr"] = stderr
+            current_ep["diagnostic_feedback"] = ""
             current_ep["agent_reasoning"] = "Schema validation passed."
         else:
             current_ep["status"] = "SCHEMA_FAILED"
@@ -168,14 +173,15 @@ def schema_validator_node(state: AgentState) -> dict:
             
     except Exception as e:
         current_ep["agent_reasoning"] = f"Schema validator error: {str(e)}"
+        updates = {}
         
-    return {"endpoints": endpoints}
+    return {"endpoints": endpoints, **updates}
 
 def coder_node(state: AgentState) -> dict:
     """Generates Python test script for the current endpoint."""
     idx = state.get("current_endpoint_index", 0)
     endpoints = state.get("endpoints", [])
-    if idx >= len(endpoints) or not llm:
+    if idx >= len(endpoints):
         return {}
     
     current_ep = endpoints[idx]
@@ -189,22 +195,22 @@ def coder_node(state: AgentState) -> dict:
         return {"endpoints": endpoints}
     
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are an expert Python SDK Tester. Write a complete, runnable Python test script that imports and tests the generated SDK. The SDK is located in the `apiforge_sdk` package. You can import from `apiforge_sdk.client` or `apiforge_sdk.models`. Instantiate the client with the base URL, call the SDK method for the target endpoint, and make deep assertions on the returned payload. You MUST assert that the return type is NOT a raw httpx response (e.g., `assert not isinstance(result, httpx.Response)`). You MUST assert that the result is the expected Pydantic model (e.g., `assert isinstance(result, User)` or `assert isinstance(result[0], User)`). You MUST write strong assertions verifying specific nested fields (e.g., `assert isinstance(result[0].id, int)` and `assert isinstance(result[0].address.city, str)`). If the SDK is incorrect or missing the method, DO NOT try to fix the SDK here, just write the test as it *should* work. Do not use markdown blocks for the code, just pure raw python string."),
+        ("system", "You are an expert Python SDK Tester. Write a complete, runnable Python test script that imports and tests the generated SDK. The SDK is located in the `apiforge_sdk` package. You can import from `apiforge_sdk.client` or `apiforge_sdk.models`. Instantiate the client with the base URL, call the SDK method for the target endpoint, and make deep assertions on the returned payload. You MUST assert that the return type is NOT a raw httpx response (e.g., `assert not isinstance(result, httpx.Response)`). You MUST assert that the result is the expected Pydantic model (e.g., `assert isinstance(result, User)` or `assert isinstance(result[0], User)`). You MUST write strong assertions verifying specific nested fields (e.g., `assert isinstance(result[0].id, int)` and `assert isinstance(result[0].address.city, str)`). CRITICAL: You MUST use `httpx.MockTransport` to mock the HTTP requests so the test does not depend on a running server. Never make a real network request. Inject the mock transport into the `ApiClient` instance. If the SDK is incorrect or missing the method, DO NOT try to fix the SDK here, just write the test as it *should* work. Do not use markdown blocks for the code, just pure raw python string."),
         ("user", "Endpoint to test: {method} {path}\nBase URL: {base_url}\nGenerated SDK client.py:\n{client_py}\nGenerated SDK models.py:\n{models_py}\nPrevious Diagnostic Feedback:\n{diagnostic_feedback}")
     ])
     
-    chain = prompt | llm.with_structured_output(CoderOutput)
-    
     try:
         sdk_files = state.get("sdk_files", {})
-        result = chain.invoke({
+        input_vars = {
             "method": current_ep.get("method"),
             "path": current_ep.get("path"),
             "base_url": state.get("base_url"),
             "client_py": sdk_files.get("client.py", ""),
             "models_py": sdk_files.get("models.py", ""),
             "diagnostic_feedback": current_ep.get("diagnostic_feedback", "None")
-        })
+        }
+        
+        result, updates = ReliabilityManager.invoke(prompt, CoderOutput, input_vars, state)
         
         current_ep["agent_reasoning"] = result.reasoning
         
@@ -228,8 +234,9 @@ def coder_node(state: AgentState) -> dict:
             
     except Exception as e:
         current_ep["agent_reasoning"] = f"Coder error: {str(e)}"
+        updates = {}
         
-    return {"endpoints": endpoints}
+    return {"endpoints": endpoints, **updates}
 
 def executor_node(state: AgentState) -> AgentState:
     print("--- EXECUTOR ---")
@@ -275,28 +282,24 @@ def diagnoser_node(state: AgentState) -> dict:
         current_ep["status"] = "FAILED_PERMANENTLY"
         current_ep["agent_reasoning"] = "Max retries exceeded. Moving to next endpoint."
         return {"current_endpoint_index": idx + 1, "endpoints": endpoints}
-    
-    if not llm:
-        current_ep["agent_reasoning"] = "No LLM for diagnoser."
-        return {"endpoints": endpoints}
         
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are an API Debugging Expert. Analyze the execution logs. If the error is an 'SDK Consistency Validation Failed' error OR if a test fails because the SDK returns a raw httpx.Response instead of a Pydantic model (e.g. AssertionError on the return type), the SDK IS FLAWED and you MUST fix the SDK files (`client.py` or `models.py`). NEVER downgrade `model_validate()` to `User(**item)` unless `model_validate` causes an actual runtime failure. Ensure that relative imports are used inside the SDK (e.g. `from .models import User`). Select the correct `error_category` ('sdk_error', 'schema_error', 'test_error'). Only modify the files relevant to the error category. For `sdk_error`, output corrected `client.py` or `models.py`. For `schema_error`, modify `models.py`. For `test_error`, provide `mutation_instructions` for the test. Output the FULL corrected Python code for `client.py` and `models.py` (do not truncate, output the entire file)."),
+        ("system", "You are an API Debugging Expert. Analyze the execution logs. If the error is an 'SDK Consistency Validation Failed' error OR if a test fails because the SDK returns a raw httpx.Response instead of a Pydantic model (e.g. AssertionError on the return type), the SDK IS FLAWED and you MUST fix the SDK files (`client.py` or `models.py`). NEVER downgrade `model_validate()` to `User(**item)` unless `model_validate` causes an actual runtime failure. Ensure that relative imports are used inside the SDK (e.g. `from .models import User`). When configuring Pydantic models, you MUST use Pydantic V2 `model_config = ConfigDict(populate_by_name=True, extra='forbid')` as a direct class attribute, and NEVER use the Pydantic V1 `class Config:` block. Make sure to import `ConfigDict` from `pydantic`. Select the correct `error_category` ('sdk_error', 'schema_error', 'test_error'). Only modify the files relevant to the error category. For `sdk_error`, output corrected `client.py` or `models.py`. For `schema_error`, modify `models.py`. For `test_error`, provide `mutation_instructions` for the test. Output the FULL corrected Python code for `client.py` and `models.py` (do not truncate, output the entire file)."),
         ("user", "Endpoint: {method} {path}\nExecution Logs:\n{logs}\nTest Script:\n{code}\nSDK client.py:\n{client_py}\nSDK models.py:\n{models_py}")
     ])
     
-    chain = prompt | llm.with_structured_output(DiagnoserOutput)
-    
     try:
         sdk_files = state.get("sdk_files", {})
-        result = chain.invoke({
+        input_vars = {
             "method": current_ep.get("method"),
             "path": current_ep.get("path"),
             "logs": f"STDOUT:\n{current_ep.get('execution_stdout', '')}\nSTDERR:\n{current_ep.get('execution_stderr', '')}",
             "code": current_ep.get("generated_code"),
             "client_py": sdk_files.get("client.py", ""),
             "models_py": sdk_files.get("models.py", "")
-        })
+        }
+        
+        result, updates = ReliabilityManager.invoke(prompt, DiagnoserOutput, input_vars, state)
         
         current_ep["agent_reasoning"] = f"Diagnosed failure: {result.likely_cause}. Category: {result.error_category}"
         
@@ -314,6 +317,10 @@ def diagnoser_node(state: AgentState) -> dict:
             
     except Exception as e:
         current_ep["agent_reasoning"] = f"Diagnoser error: {str(e)}"
-        current_ep["diagnostic_feedback"] = "Unknown error during diagnosis."
+        current_ep["diagnostic_feedback"] = f"Diagnoser failed to generate valid fix: {str(e)}"
         
-    return {"endpoints": endpoints, "sdk_files": sdk_files}
+        # Stop the infinite loop immediately if the Diagnoser LLM throws an unrecoverable exception
+        current_ep["status"] = "FAILED_PERMANENTLY"
+        updates = {}
+        
+    return {"endpoints": endpoints, "sdk_files": sdk_files, **updates}

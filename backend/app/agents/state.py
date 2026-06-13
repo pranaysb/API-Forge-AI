@@ -20,3 +20,7 @@ class AgentState(TypedDict):
     errors: List[str]
     global_context: Dict[str, Any]
     sdk_files: Dict[str, str]
+    current_key_index: int
+    current_model_index: int
+    provider_failovers: int
+    model_failovers: int
