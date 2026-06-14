@@ -21,7 +21,10 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Set the sqlalchemy url dynamically from config
-config.set_main_option("sqlalchemy.url", settings.SQLALCHEMY_DATABASE_URI)
+db_url = settings.SQLALCHEMY_DATABASE_URI
+if ":6543" in db_url:
+    db_url = db_url.replace(":6543", ":5432")
+config.set_main_option("sqlalchemy.url", db_url)
 
 # add your model's MetaData object here
 # for 'autogenerate' support

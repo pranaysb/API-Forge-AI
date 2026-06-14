@@ -14,8 +14,13 @@ def setup_checkpoints():
         return
         
     print("Setting up LangGraph PostgresSaver tables...")
+    # Use session pooler port (5432) for DDL table creation if using Supabase
+    db_url = settings.SQLALCHEMY_DATABASE_URI
+    if ":6543" in db_url:
+        db_url = db_url.replace(":6543", ":5432")
+        
     # PostgresSaver.setup() creates tables safely with IF NOT EXISTS
-    with ConnectionPool(conninfo=settings.SQLALCHEMY_DATABASE_URI, max_size=2) as pool:
+    with ConnectionPool(conninfo=db_url, max_size=2) as pool:
         checkpointer = PostgresSaver(pool)
         checkpointer.setup()
     print("LangGraph PostgresSaver tables setup successfully!")
