@@ -20,7 +20,7 @@ def setup_checkpoints():
         db_url = db_url.replace(":6543", ":5432")
         
     # PostgresSaver.setup() creates tables safely with IF NOT EXISTS
-    with ConnectionPool(conninfo=db_url, max_size=2) as pool:
+    with ConnectionPool(conninfo=db_url, min_size=1, max_size=2) as pool:
         checkpointer = PostgresSaver(pool)
         checkpointer.setup()
     print("LangGraph PostgresSaver tables setup successfully!")
