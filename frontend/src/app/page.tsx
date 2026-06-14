@@ -1,5 +1,5 @@
-import { getApiUrl } from "@/lib/api";
 "use client";
+import { getApiUrl } from "@/lib/api";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";

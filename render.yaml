@@ -2,7 +2,7 @@ services:
   - type: web
     name: apiforge-backend
     env: python
-    buildCommand: "cd backend && pip install poetry && poetry install --no-dev"
+    buildCommand: "cd backend && pip install poetry && poetry install --without dev && poetry run alembic upgrade head && poetry run python scripts/init_checkpointer.py"
     startCommand: "cd backend && poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: DATABASE_URL
