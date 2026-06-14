@@ -19,9 +19,12 @@ def setup_checkpoints():
     if ":6543" in db_url:
         db_url = db_url.replace(":6543", ":5432")
         
+    import psycopg
     # PostgresSaver.setup() creates tables safely with IF NOT EXISTS
-    with ConnectionPool(conninfo=db_url, min_size=1, max_size=2) as pool:
-        checkpointer = PostgresSaver(pool)
+    # We must use autocommit=True because setup() executes 'CREATE INDEX CONCURRENTLY'
+    # which Postgres forbids inside a transaction block.
+    with psycopg.connect(db_url, autocommit=True) as conn:
+        checkpointer = PostgresSaver(conn)
         checkpointer.setup()
     print("LangGraph PostgresSaver tables setup successfully!")
 
