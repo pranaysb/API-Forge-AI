@@ -13,13 +13,16 @@ import asyncio
 from datetime import datetime
 from psycopg_pool import ConnectionPool
 from langgraph.checkpoint.postgres import PostgresSaver
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.errors import GraphRecursionError
 from app.core.config import settings
 
 router = APIRouter()
 
-# Connection pool for langgraph checkpointer
-pool = ConnectionPool(conninfo=settings.SQLALCHEMY_DATABASE_URI, max_size=20, open=False)
+# Connection pool for langgraph checkpointer (only if using Postgres)
+is_sqlite = settings.SQLALCHEMY_DATABASE_URI.startswith("sqlite")
+pool = None if is_sqlite else ConnectionPool(conninfo=settings.SQLALCHEMY_DATABASE_URI, max_size=20, open=False)
+memory_saver = MemorySaver() if is_sqlite else None
 
 # In-memory lock to prevent concurrent executions for the same job
 job_locks = {}
@@ -64,8 +67,12 @@ async def real_event_generator(job_id: str, db: Session):
                 "current_endpoint_index": 0
             })
 
-            pool.open()
-            checkpointer = PostgresSaver(pool)
+            if is_sqlite:
+                checkpointer = memory_saver
+            else:
+                pool.open()
+                checkpointer = PostgresSaver(pool)
+                
             graph = build_graph(checkpointer=checkpointer)
             
             recursion_limit = max(200, len(endpoints_data) * 30)

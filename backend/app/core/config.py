@@ -6,7 +6,15 @@ from typing import Optional
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "APIForge AI"
-    SQLALCHEMY_DATABASE_URI: str = "postgresql://pranaysb@localhost:5432/apiforge"
+    SQLALCHEMY_DATABASE_URI: str = "sqlite:///./apiforge.db"
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        import os
+        db_url = os.getenv("DATABASE_URL")
+        if db_url:
+            self.SQLALCHEMY_DATABASE_URI = db_url
+            
     REDIS_URL: str = ""
 
     OPENAI_API_KEY: Optional[str] = None

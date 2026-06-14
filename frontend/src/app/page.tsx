@@ -1,3 +1,4 @@
+import { getApiUrl } from "@/lib/api";
 "use client";
 
 import { useState } from "react";
@@ -19,7 +20,7 @@ export default function Home() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("http://localhost:8000/api/upload", {
+      const res = await fetch(getApiUrl("/upload"), {
         method: "POST",
         body: formData,
       });

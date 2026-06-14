@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: apiforge-backend
+    env: python
+    buildCommand: "cd backend && pip install poetry && poetry install --no-dev"
+    startCommand: "cd backend && poetry run uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.11.0

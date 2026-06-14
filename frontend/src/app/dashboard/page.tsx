@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getApiUrl } from "@/lib/api";
 import Link from "next/link";
 
 interface Project {
@@ -23,7 +24,7 @@ export default function Dashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/dashboard/projects")
+    fetch(getApiUrl("/dashboard/projects"))
       .then((res) => res.json())
       .then((data) => {
         setProjects(data);
@@ -34,7 +35,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!selectedProjectId) return;
-    fetch(`http://localhost:8000/api/dashboard/projects/${selectedProjectId}/jobs`)
+    fetch(getApiUrl(`/dashboard/projects/${selectedProjectId}/jobs`))
       .then((res) => res.json())
       .then(setJobs)
       .catch(console.error);

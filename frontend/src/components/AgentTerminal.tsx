@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from 'react';
+import { getApiUrl } from "@/lib/api";
 
 type LogEvent = {
   status: string;
@@ -14,7 +15,7 @@ export default function AgentTerminal({ specId }: { specId: string }) {
   useEffect(() => {
     if (!specId) return;
 
-    const eventSource = new EventSource(`http://localhost:8000/api/stream/${specId}`);
+    const eventSource = new EventSource(getApiUrl(`/stream/${specId}`));
 
     eventSource.onmessage = (event) => {
       try {
@@ -73,7 +74,7 @@ export default function AgentTerminal({ specId }: { specId: string }) {
       </div>
       {isComplete && (
         <div className="p-4 bg-zinc-900 border-t border-zinc-800 flex justify-end">
-          <a href={`http://localhost:8000/api/download/${specId}`} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-lg">
+          <a href={getApiUrl(`/download/${specId}`)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-lg">
             Download Python SDK
           </a>
         </div>

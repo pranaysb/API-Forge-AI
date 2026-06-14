@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { getApiUrl } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -27,7 +28,7 @@ export default function JobTimeline() {
     let eventSource: EventSource | null = null;
     
     // First fetch historical data
-    fetch(`http://localhost:8000/api/dashboard/jobs/${id}/timeline`)
+    fetch(getApiUrl(`/dashboard/jobs/${id}/timeline`))
       .then(res => res.json())
       .then(data => {
         setStatus(data.status);
@@ -38,7 +39,7 @@ export default function JobTimeline() {
         
         if (data.status !== "SUCCESS" && data.status !== "FAILED") {
           // Connect to SSE stream to resume/watch execution
-          eventSource = new EventSource(`http://localhost:8000/api/jobs/${id}/stream`);
+          eventSource = new EventSource(getApiUrl(`/jobs/${id}/stream`));
           eventSource.onmessage = (e) => {
             const evData = JSON.parse(e.data);
             if (evData.status === "complete") {
@@ -53,7 +54,7 @@ export default function JobTimeline() {
               eventSource?.close();
             } else {
               // Re-fetch timeline to get full logs cleanly instead of hacking state
-              fetch(`http://localhost:8000/api/dashboard/jobs/${id}/timeline`)
+              fetch(getApiUrl(`/dashboard/jobs/${id}/timeline`))
                 .then(r => r.json())
                 .then(d => {
                   setLogs(d.logs || []);
@@ -103,7 +104,7 @@ export default function JobTimeline() {
             
             {status === "SUCCESS" && (
               <a
-                href={`http://localhost:8000/api/download/${id}`}
+                href={getApiUrl(`/download/${id}`)}
                 className="inline-flex items-center gap-2 bg-black hover:bg-zinc-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-md"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
