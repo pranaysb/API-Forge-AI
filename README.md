@@ -55,3 +55,17 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to run tests, write ne
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+The current pipeline 
+OpenAPI Spec
+    ↓
+SDK Generation
+    ↓
+Model Generation
+    ↓
+Test Generation
+    ↓
+Execution
+    ↓
+Diagnosis
+    ↓
+Repair Loop
