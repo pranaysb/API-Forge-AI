@@ -8,15 +8,15 @@ The standard execution flow relies on a LangGraph state machine. Prompts are inv
 
 ```mermaid
 graph TD
-    Upload[User Uploads OpenAPI Spec] --> Planner
-    Planner --> SDK_Validator[SDK Consistency Validator (Code-only, No LLM)]
+    Upload["User Uploads OpenAPI Spec"] --> Planner
+    Planner --> SDK_Validator["SDK Consistency Validator (Code-only, No LLM)"]
     SDK_Validator --> Schema_Validator
     
     Schema_Validator --> |If validated| Coder
     Schema_Validator --> |If failed| Diagnoser
     
-    Coder --> Executor[Local/E2B Code Executor (No LLM)]
-    Executor --> |If test passes| Success[Endpoint Success]
+    Coder --> Executor["Local/E2B Code Executor (No LLM)"]
+    Executor --> |If test passes| Success["Endpoint Success"]
     Executor --> |If test fails| Diagnoser
     
     Diagnoser --> |Patches SDK files/Provides test feedback| Schema_Validator
