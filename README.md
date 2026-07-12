@@ -2,7 +2,8 @@
 
 API Forge AI is an autonomous, agentic system built with LangGraph that ingests an OpenAPI schema and dynamically generates, tests, and self-heals Python SDK clients.
 A self healing and self improving agentic platform to turn API Docs to SDK
-version 2 launching on july 17th.
+version 2 launching on july 17th. 
+Update
 ## Overview
 
 The system orchestrates multiple LLM-powered agents to ensure that the generated SDK is structurally sound, semantically correct, and fully tested against real or mocked network conditions.
