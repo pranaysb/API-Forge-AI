@@ -98,6 +98,36 @@ def validate_sdk_consistency(sdk_files: dict) -> list[str]:
         
     return errors
 
+def lint_test_script(code: str, require_mock_transport: bool = True) -> list[str]:
+    """Statically validates a generated test script: syntax, banned imports,
+    and (optionally) that httpx.MockTransport is used so no real network
+    calls are made."""
+    errors = []
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        return [f"SyntaxError: {str(e)}"]
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if 'pytest' in alias.name:
+                    errors.append("BANNED_IMPORT: 'pytest' is not allowed. Use standard assert statements.")
+        elif isinstance(node, ast.ImportFrom):
+            if node.module and 'pytest' in node.module:
+                errors.append("BANNED_IMPORT: 'pytest' is not allowed. Use standard assert statements.")
+
+    if require_mock_transport:
+        has_mock_transport = any(
+            (isinstance(node, ast.Attribute) and node.attr == 'MockTransport') or
+            (isinstance(node, ast.Name) and node.id == 'MockTransport')
+            for node in ast.walk(tree)
+        )
+        if not has_mock_transport:
+            errors.append("MISSING_MOCK: You must use `httpx.MockTransport(handler)` to mock the API response. Real network calls are not allowed in this validation mode.")
+
+    return errors
+
 def sdk_validator_node(state: AgentState) -> dict:
     """Pre-execution validation stage: Validates SDK syntax and imports."""
     sdk_files = state.get("sdk_files", {})
@@ -152,26 +182,40 @@ def schema_validator_node(state: AgentState) -> dict:
         system_prompt = "You are a Schema Validator. Write a short Python script to fetch a real payload from the API and validate it using the generated Pydantic models. Use `httpx.get` (or appropriate method). Do NOT use the generated ApiClient, just raw httpx. Import the correct model from `apiforge_sdk.models` and run `Model.model_validate(item)`. If it's a list, validate one item. Do not use markdown blocks, just raw python string."
     else:
         validation_mode = "SYNTHETIC"
-        system_prompt = "You are a Schema Validator. Write a short Python script to synthetically generate a dummy payload based EXACTLY on the OpenAPI schema for this endpoint, and validate it using the generated Pydantic models. You MUST use `httpx.MockTransport(handler)` to mock the API response. Do NOT make a real network request. Import the correct model from `apiforge_sdk.models` and run `Model.model_validate(item)`. Do not use markdown blocks, just raw python string."
-        
+        system_prompt = "You are a Schema Validator. Write a short Python script to synthetically generate a dummy payload based EXACTLY on the OpenAPI schema for this endpoint, and validate it using the generated Pydantic models. You MUST use `httpx.MockTransport(handler)` to mock the API response. Do NOT make a real network request. Import the correct model from `apiforge_sdk.models` and run `Model.model_validate(item)`. Write plain multi-line Python with normal newlines and indentation — never compress statements onto one line with semicolons. Do not use markdown blocks, just raw python string."
+
     current_ep["validation_mode"] = validation_mode
-    
+
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
-        ("user", "Endpoint: {method} {path}\nBase URL: {base_url}\nModels:\n{models_py}")
+        ("user", "Endpoint: {method} {path}\nBase URL: {base_url}\nModels:\n{models_py}\nPrevious Diagnostic Feedback:\n{diagnostic_feedback}\nPrevious Failed Script (fix its mistakes, do not repeat them):\n{previous_script}\nPrevious Error Output:\n{previous_stderr}")
     ])
-    
+
     try:
         sdk_files = state.get("sdk_files", {})
         input_vars = {
             "method": current_ep.get("method"),
             "path": current_ep.get("path"),
             "base_url": state.get("base_url"),
-            "models_py": sdk_files.get("models.py", "")
+            "models_py": sdk_files.get("models.py", ""),
+            "diagnostic_feedback": current_ep.get("diagnostic_feedback") or "None",
+            "previous_script": current_ep.get("generated_code") or "None",
+            "previous_stderr": current_ep.get("execution_stderr") or "None"
         }
-        
+
         result, updates = ReliabilityManager.invoke(prompt, SchemaValidatorOutput, input_vars, state)
-        
+
+        # Lint before executing: schema scripts previously ran unchecked, so a
+        # SyntaxError or a real network call could slip straight to the executor.
+        lint_errors = lint_test_script(result.python_code, require_mock_transport=(validation_mode == "SYNTHETIC"))
+        if lint_errors:
+            current_ep["status"] = "SCHEMA_FAILED"
+            current_ep["generated_code"] = result.python_code
+            current_ep["execution_stdout"] = ""
+            current_ep["execution_stderr"] = "Schema Validation Script Linter Failed:\n" + "\n".join(lint_errors)
+            current_ep["agent_reasoning"] = "Linter rejected the schema validation script. Routing to Diagnoser."
+            return {"endpoints": endpoints, **updates}
+
         executor = get_executor()
         success, stdout, stderr = executor.execute_sdk_test(sdk_files, result.python_code)
         
@@ -266,37 +310,9 @@ def test_linter_node(state: AgentState) -> AgentState:
         
     current_ep = endpoints[idx]
     code = current_ep.get("generated_code", "")
-    
-    errors = []
-    
-    try:
-        tree = ast.parse(code)
-        
-        # Check for pytest imports
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    if 'pytest' in alias.name:
-                        errors.append("BANNED_IMPORT: 'pytest' is not allowed. Use standard assert statements.")
-            elif isinstance(node, ast.ImportFrom):
-                if node.module and 'pytest' in node.module:
-                    errors.append("BANNED_IMPORT: 'pytest' is not allowed. Use standard assert statements.")
-                    
-        # Check for MockTransport (very simple string/AST check)
-        # We enforce httpx.MockTransport because it prevents real network calls.
-        has_mock_transport = False
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Attribute) and node.attr == 'MockTransport':
-                has_mock_transport = True
-            elif isinstance(node, ast.Name) and node.id == 'MockTransport':
-                has_mock_transport = True
-                
-        if not has_mock_transport:
-            errors.append("MISSING_MOCK: You must use `httpx.MockTransport(handler)` to mock the API response. Real network calls are not allowed in this validation mode.")
-            
-    except SyntaxError as e:
-        errors.append(f"SyntaxError: {str(e)}")
-        
+
+    errors = lint_test_script(code, require_mock_transport=True)
+
     if errors:
         current_ep["status"] = "LINTER_FAILED"
         current_ep["execution_stderr"] = "Test Script Linter Failed:\n" + "\n".join(errors)
@@ -369,9 +385,17 @@ def diagnoser_node(state: AgentState) -> dict:
         }
         
         result, updates = ReliabilityManager.invoke(prompt, DiagnoserOutput, input_vars, state)
-        
+
+        # Guard against misdiagnosis: a SyntaxError raised by the test script
+        # itself can never be an SDK problem, so don't let the LLM patch the
+        # SDK for it. (Observed: it blamed models.py for a one-line script.)
+        stderr = current_ep.get("execution_stderr", "") or ""
+        if "SyntaxError" in stderr and "test_script.py" in stderr and "models.py" not in stderr and "client.py" not in stderr:
+            result.error_category = "test_error"
+            result.patches = []
+
         current_ep["agent_reasoning"] = f"Diagnosed failure: {result.likely_cause}. Category: {result.error_category}"
-        
+
         feedback = result.mutation_instructions
         
         # Apply the fixed SDK files to the state based on patches
