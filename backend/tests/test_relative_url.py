@@ -1,16 +1,10 @@
-import pytest
-import urllib.parse
-from fastapi.testclient import TestClient
-from app.main import app
+from app.api.stream import normalize_base_url
 
-def test_relative_url_normalization():
-    # We can test the logic directly
-    raw_url = "/api/v3"
-    if not raw_url.startswith(("http://", "https://")):
-        base_url = urllib.parse.urljoin("http://127.0.0.1:8001", raw_url)
-    else:
-        base_url = raw_url
-    assert base_url == "http://127.0.0.1:8001/api/v3"
+def test_relative_url_is_resolved_against_default_host():
+    assert normalize_base_url("/api/v3") == "http://127.0.0.1:8001/api/v3"
 
-test_relative_url_normalization()
-print("Relative URL test passed.")
+def test_absolute_http_url_is_untouched():
+    assert normalize_base_url("http://example.com/v1") == "http://example.com/v1"
+
+def test_absolute_https_url_is_untouched():
+    assert normalize_base_url("https://api.example.com") == "https://api.example.com"
