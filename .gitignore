@@ -68,3 +68,8 @@ backend/specs/*.json
 backend/tiny_spec.json
 backend/large_spec.json
 backend/scripts/
+
+# Large vendor API specs (fetch locally; see benchmarks/README.md)
+benchmarks/github.json
+benchmarks/stripe.json
+benchmarks/discord.json
