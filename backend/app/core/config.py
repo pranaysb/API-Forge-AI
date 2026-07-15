@@ -1,16 +1,14 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
+import os
 from typing import Optional
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "APIForge AI"
     SQLALCHEMY_DATABASE_URI: str = "sqlite:///./apiforge.db"
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        import os
         db_url = os.getenv("DATABASE_URL")
         if db_url:
             if db_url.startswith("postgres://"):
