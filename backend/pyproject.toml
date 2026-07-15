@@ -16,7 +16,7 @@ psycopg2-binary = "^2.9.9"
 alembic = "^1.13.3"
 pyyaml = "^6.0.1"
 python-multipart = "^0.0.9"
-langgraph = "^0.2.0"
+langgraph = "^0.4.0"
 langchain-openai = "^0.2.1"
 langchain-anthropic = "^0.2.1"
 langchain-groq = "*"
@@ -35,3 +35,7 @@ build-backend = "poetry.core.masonry.api"
 dev = [
     "pytest (>=9.1.1,<10.0.0)"
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
