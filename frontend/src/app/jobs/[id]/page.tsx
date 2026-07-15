@@ -5,6 +5,15 @@ import { getApiUrl } from "@/lib/api";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 
+interface EndpointInfo {
+  status?: string;
+  agent_reasoning?: string;
+  generated_code?: string;
+  execution_stdout?: string;
+  execution_stderr?: string;
+  diagnostic_feedback?: string;
+}
+
 interface ExecutionLog {
   id: string;
   node_name: string;
@@ -43,7 +52,10 @@ export default function JobTimeline() {
           eventSource.onmessage = (e) => {
             const evData = JSON.parse(e.data);
             if (evData.status === "complete") {
-              if (evData.message && evData.message.toLowerCase().includes("failed")) {
+              if (typeof evData.success === "boolean") {
+                setStatus(evData.success ? "SUCCESS" : "FAILED");
+              } else if (evData.message && evData.message.toLowerCase().includes("failed")) {
+                // Fallback for older backends without the explicit success flag
                 setStatus("FAILED");
               } else {
                 setStatus("SUCCESS");
@@ -118,7 +130,7 @@ export default function JobTimeline() {
         <div className="space-y-6">
           {logs.map((log, index) => {
             const activeIndex = log.state_delta?.active_endpoint_index;
-            const ep = (activeIndex !== undefined && activeIndex !== null) ? (log.state_delta?.endpoints as any)?.[activeIndex as number] : undefined;
+            const ep = (activeIndex !== undefined && activeIndex !== null) ? (log.state_delta?.endpoints as EndpointInfo[] | undefined)?.[activeIndex as number] : undefined;
             const method = log.state_delta?.active_endpoint_method as string | undefined;
             const path = log.state_delta?.active_endpoint_path as string | undefined;
             
