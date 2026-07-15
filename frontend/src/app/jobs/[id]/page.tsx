@@ -1,21 +1,21 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { getApiUrl } from "@/lib/api";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 
 interface ExecutionLog {
   id: string;
   node_name: string;
-  state_delta: any;
+  state_delta: Record<string, unknown>;
   created_at: string;
   duration_ms?: number;
 }
 
 export default function JobTimeline() {
   const { id } = useParams();
-  const router = useRouter();
+
   
   const [status, setStatus] = useState<string>("PENDING");
   const [logs, setLogs] = useState<ExecutionLog[]>([]);
@@ -118,9 +118,9 @@ export default function JobTimeline() {
         <div className="space-y-6">
           {logs.map((log, index) => {
             const activeIndex = log.state_delta?.active_endpoint_index;
-            const ep = activeIndex !== undefined ? log.state_delta?.endpoints?.[activeIndex] : undefined;
-            const method = log.state_delta?.active_endpoint_method;
-            const path = log.state_delta?.active_endpoint_path;
+            const ep = (activeIndex !== undefined && activeIndex !== null) ? (log.state_delta?.endpoints as any)?.[activeIndex as number] : undefined;
+            const method = log.state_delta?.active_endpoint_method as string | undefined;
+            const path = log.state_delta?.active_endpoint_path as string | undefined;
             
             return (
               <div key={log.id} className="relative pl-8">
@@ -164,7 +164,7 @@ export default function JobTimeline() {
                   {/* Rendering specific node outputs */}
                   {log.node_name === "planner" && (
                      <div className="text-zinc-600 text-sm italic border-l-2 border-purple-200 pl-4 py-1">
-                        "Planner initialized execution trace."
+                        &quot;Planner initialized execution trace.&quot;
                      </div>
                   )}
 

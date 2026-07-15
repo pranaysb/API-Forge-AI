@@ -17,12 +17,16 @@ class CoderOutput(BaseModel):
     reasoning: str = Field(description="Reasoning about how to test this specific endpoint using the generated SDK.")
     python_code: str = Field(description="A complete Python script using the generated SDK (`import apiforge_sdk`) to test the endpoint. Make sure to instantiate the client, call the method, and assert that the response is correct (e.g. valid Pydantic model).")
 
+class Patch(BaseModel):
+    file_name: str = Field(description="Must be exactly 'client.py' or 'models.py'.")
+    search_string: str = Field(description="The exact string in the file to be replaced. Must match exactly.")
+    replace_string: str = Field(description="The string to replace it with.")
+
 class DiagnoserOutput(BaseModel):
     likely_cause: str = Field(description="The likely cause of the failure based on the execution logs.")
     error_category: str = Field(description="Must be one of: 'sdk_error', 'schema_error', 'test_error'.")
     mutation_instructions: str = Field(description="Specific instructions for what was wrong.")
-    client_code: str = Field(description="The FULL, CORRECTED apiforge_sdk/client.py code. If no changes needed, output the original.")
-    models_code: str = Field(description="The FULL, CORRECTED apiforge_sdk/models.py code. If no changes needed, output the original.")
+    patches: list[Patch] = Field(description="List of text replacement patches to apply to the SDK files.", default_factory=list)
 
 class SchemaValidatorOutput(BaseModel):
     python_code: str = Field(description="A short python script using `httpx` to fetch a real payload from the API, import the correct Pydantic model from `apiforge_sdk.models`, and run `Model.model_validate()` against it.")
@@ -138,8 +142,22 @@ def schema_validator_node(state: AgentState) -> dict:
     if current_ep.get("status") == "FAILED_PERMANENTLY":
         return {"current_endpoint_index": idx + 1, "endpoints": endpoints}
         
+    method = current_ep.get("method", "GET").upper()
+    has_auth = state.get("auth_credentials") is not None
+    
+    is_safe_method = method in ["GET", "HEAD", "OPTIONS"]
+    
+    if is_safe_method and has_auth:
+        validation_mode = "REAL"
+        system_prompt = "You are a Schema Validator. Write a short Python script to fetch a real payload from the API and validate it using the generated Pydantic models. Use `httpx.get` (or appropriate method). Do NOT use the generated ApiClient, just raw httpx. Import the correct model from `apiforge_sdk.models` and run `Model.model_validate(item)`. If it's a list, validate one item. Do not use markdown blocks, just raw python string."
+    else:
+        validation_mode = "SYNTHETIC"
+        system_prompt = "You are a Schema Validator. Write a short Python script to synthetically generate a dummy payload based EXACTLY on the OpenAPI schema for this endpoint, and validate it using the generated Pydantic models. You MUST use `httpx.MockTransport(handler)` to mock the API response. Do NOT make a real network request. Import the correct model from `apiforge_sdk.models` and run `Model.model_validate(item)`. Do not use markdown blocks, just raw python string."
+        
+    current_ep["validation_mode"] = validation_mode
+    
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are a Schema Validator. Write a short Python script to fetch a sample payload from the API and validate it using the generated Pydantic models. Use `httpx.get` (or appropriate method). Do NOT use the generated ApiClient, just raw httpx. Import the correct model from `apiforge_sdk.models` and run `Model.model_validate(item)`. If it's a list, validate one item. Do not use markdown blocks, just raw python string."),
+        ("system", system_prompt),
         ("user", "Endpoint: {method} {path}\nBase URL: {base_url}\nModels:\n{models_py}")
     ])
     
@@ -238,6 +256,57 @@ def coder_node(state: AgentState) -> dict:
         
     return {"endpoints": endpoints, **updates}
 
+def test_linter_node(state: AgentState) -> AgentState:
+    """Statically verifies the generated test script before execution."""
+    print("--- TEST LINTER ---")
+    endpoints = state.get("endpoints", [])
+    idx = state.get("current_endpoint_index", 0)
+    if idx >= len(endpoints):
+        return state
+        
+    current_ep = endpoints[idx]
+    code = current_ep.get("generated_code", "")
+    
+    errors = []
+    
+    try:
+        tree = ast.parse(code)
+        
+        # Check for pytest imports
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if 'pytest' in alias.name:
+                        errors.append("BANNED_IMPORT: 'pytest' is not allowed. Use standard assert statements.")
+            elif isinstance(node, ast.ImportFrom):
+                if node.module and 'pytest' in node.module:
+                    errors.append("BANNED_IMPORT: 'pytest' is not allowed. Use standard assert statements.")
+                    
+        # Check for MockTransport (very simple string/AST check)
+        # We enforce httpx.MockTransport because it prevents real network calls.
+        has_mock_transport = False
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and node.attr == 'MockTransport':
+                has_mock_transport = True
+            elif isinstance(node, ast.Name) and node.id == 'MockTransport':
+                has_mock_transport = True
+                
+        if not has_mock_transport:
+            errors.append("MISSING_MOCK: You must use `httpx.MockTransport(handler)` to mock the API response. Real network calls are not allowed in this validation mode.")
+            
+    except SyntaxError as e:
+        errors.append(f"SyntaxError: {str(e)}")
+        
+    if errors:
+        current_ep["status"] = "LINTER_FAILED"
+        current_ep["execution_stderr"] = "Test Script Linter Failed:\n" + "\n".join(errors)
+        current_ep["agent_reasoning"] = "Linter rejected the test script. Routing to Diagnoser."
+        print(f"Linter failed: {errors}")
+    else:
+        print("Linter passed.")
+        
+    return {"endpoints": endpoints}
+
 def executor_node(state: AgentState) -> AgentState:
     print("--- EXECUTOR ---")
     endpoints = state["endpoints"]
@@ -284,7 +353,7 @@ def diagnoser_node(state: AgentState) -> dict:
         return {"current_endpoint_index": idx + 1, "endpoints": endpoints}
         
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "You are an API Debugging Expert. Analyze the execution logs. If the error is an 'SDK Consistency Validation Failed' error OR if a test fails because the SDK returns a raw httpx.Response instead of a Pydantic model (e.g. AssertionError on the return type), the SDK IS FLAWED and you MUST fix the SDK files (`client.py` or `models.py`). NEVER downgrade `model_validate()` to `User(**item)` unless `model_validate` causes an actual runtime failure. Ensure that relative imports are used inside the SDK (e.g. `from .models import User`). When configuring Pydantic models, you MUST use Pydantic V2 `model_config = ConfigDict(populate_by_name=True, extra='forbid')` as a direct class attribute, and NEVER use the Pydantic V1 `class Config:` block. Make sure to import `ConfigDict` from `pydantic`. Select the correct `error_category` ('sdk_error', 'schema_error', 'test_error'). Only modify the files relevant to the error category. For `sdk_error`, output corrected `client.py` or `models.py`. For `schema_error`, modify `models.py`. For `test_error`, provide `mutation_instructions` for the test. Output the FULL corrected Python code for `client.py` and `models.py` (do not truncate, output the entire file)."),
+        ("system", "You are an API Debugging Expert. Analyze the execution logs. If the error is an 'SDK Consistency Validation Failed' error OR if a test fails because the SDK returns a raw httpx.Response instead of a Pydantic model (e.g. AssertionError on the return type), the SDK IS FLAWED and you MUST fix the SDK files (`client.py` or `models.py`). NEVER downgrade `model_validate()` to `User(**item)` unless `model_validate` causes an actual runtime failure. Ensure that relative imports are used inside the SDK (e.g. `from .models import User`). When configuring Pydantic models, you MUST use Pydantic V2 `model_config = ConfigDict(populate_by_name=True, extra='forbid')` as a direct class attribute, and NEVER use the Pydantic V1 `class Config:` block. Make sure to import `ConfigDict` from `pydantic`. Select the correct `error_category` ('sdk_error', 'schema_error', 'test_error'). Only modify the files relevant to the error category. You MUST provide specific string replacement patches. The `search_string` MUST match exactly a contiguous block of text in the file."),
         ("user", "Endpoint: {method} {path}\nExecution Logs:\n{logs}\nTest Script:\n{code}\nSDK client.py:\n{client_py}\nSDK models.py:\n{models_py}")
     ])
     
@@ -305,13 +374,19 @@ def diagnoser_node(state: AgentState) -> dict:
         
         feedback = result.mutation_instructions
         
-        # Apply the fixed SDK files to the state based on category
+        # Apply the fixed SDK files to the state based on patches
         if result.error_category in ["sdk_error", "schema_error"]:
-            sdk_files["client.py"] = result.client_code
-            sdk_files["models.py"] = result.models_code
-            feedback += f"\n\n[Diagnoser patched sdk_files in memory. Category: {result.error_category}]"
+            for patch in result.patches:
+                fname = patch.file_name
+                if fname in sdk_files:
+                    if patch.search_string in sdk_files[fname]:
+                        sdk_files[fname] = sdk_files[fname].replace(patch.search_string, patch.replace_string)
+                    else:
+                        feedback += f"\n\n[Warning: Patch search string not found in {fname}]"
+                        
+            feedback += f"\n\n[Diagnoser applied patches in memory. Category: {result.error_category}]"
             print("--- DIAGNOSER PATCHED SDK ---")
-            print(f"client.py:\n{sdk_files['client.py'][:500]}...")
+            print(f"client.py:\n{sdk_files.get('client.py', '')[:500]}...")
             
         current_ep["diagnostic_feedback"] = feedback
             

@@ -29,9 +29,9 @@ export default function Home() {
       
       // Navigate to the job timeline view
       router.push(`/jobs/${data.job_id}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Upload failed", err);
-      setError(err.message);
+      setError((err as Error).message);
     } finally {
       setIsUploading(false);
     }
