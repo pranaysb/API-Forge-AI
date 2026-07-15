@@ -2,7 +2,7 @@
 
 Based on the empirical benchmark results:
 
-**Highest-frequency bug**: `Job execution failed. One or more endpoints failed.` (Occurred 2 times)
+**Highest-frequency bug**: `None` (Occurred 0 times)
 
 **Highest-impact bug**: `HTTP 413: File too large.` (Completely blocks large enterprise APIs like GitHub and Stripe from entering the system).
 
