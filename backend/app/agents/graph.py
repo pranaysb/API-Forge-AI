@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, START, END
 from app.agents.state import AgentState
-from app.agents.nodes import planner_node, coder_node, executor_node, diagnoser_node, sdk_validator_node, schema_validator_node
+from app.agents.nodes import planner_node, coder_node, executor_node, diagnoser_node, sdk_validator_node, schema_validator_node, test_linter_node
 
 def route_after_diagnoser(state: AgentState) -> str:
     idx = state.get("current_endpoint_index", 0)
@@ -28,6 +28,20 @@ def route_after_schema_validator(state: AgentState) -> str:
         
     return "coder"
 
+def route_after_coder(state: AgentState) -> str:
+    # Always route to linter
+    return "test_linter"
+
+def route_after_linter(state: AgentState) -> str:
+    idx = state.get("current_endpoint_index", 0)
+    endpoints = state.get("endpoints", [])
+    if idx >= len(endpoints):
+        return "end"
+    current_ep = endpoints[idx]
+    if current_ep.get("status") == "LINTER_FAILED":
+        return "diagnoser"
+    return "executor"
+
 def route_after_executor(state: AgentState) -> str:
     idx = state.get("current_endpoint_index", 0)
     endpoints = state.get("endpoints", [])
@@ -48,6 +62,7 @@ def build_graph(checkpointer=None):
     workflow.add_node("sdk_validator", sdk_validator_node)
     workflow.add_node("schema_validator", schema_validator_node)
     workflow.add_node("coder", coder_node)
+    workflow.add_node("test_linter", test_linter_node)
     workflow.add_node("executor", executor_node)
     workflow.add_node("diagnoser", diagnoser_node)
 
@@ -73,7 +88,17 @@ def build_graph(checkpointer=None):
         }
     )
     
-    workflow.add_edge("coder", "executor")
+    workflow.add_edge("coder", "test_linter")
+    
+    workflow.add_conditional_edges(
+        "test_linter",
+        route_after_linter,
+        {
+            "diagnoser": "diagnoser",
+            "executor": "executor",
+            "end": END
+        }
+    )
     
     workflow.add_conditional_edges(
         "executor",
