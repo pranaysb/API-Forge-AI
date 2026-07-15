@@ -160,6 +160,28 @@ async def real_event_generator(job_id: str, db: Session):
                 yield f"data: {json.dumps({'status': 'complete', 'message': 'Job execution failed due to recursion limit'})}\n\n"
                 return
                 
+            # Check for early termination or planner errors
+            graph_errors = full_state.get("errors", [])
+            sdk_files = full_state.get("sdk_files", {})
+            
+            if graph_errors:
+                job.status = "FAILED"
+                job.completed_at = datetime.utcnow()
+                db.commit()
+                # Surface the first error to the client
+                error_msg = graph_errors[0]
+                yield f"data: {json.dumps({'status': 'error', 'message': error_msg})}\n\n"
+                yield f"data: {json.dumps({'status': 'complete', 'message': f'Job execution failed: {error_msg}'})}\n\n"
+                return
+                
+            if not sdk_files:
+                job.status = "FAILED"
+                job.completed_at = datetime.utcnow()
+                db.commit()
+                yield f"data: {json.dumps({'status': 'error', 'message': 'SDK files were not generated'})}\n\n"
+                yield f"data: {json.dumps({'status': 'complete', 'message': 'Job execution failed: SDK generation aborted'})}\n\n"
+                return
+
             # Final SDK Quality Gate
             test_script = """import httpx
 import inspect
