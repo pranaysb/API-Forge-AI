@@ -1,0 +1,25 @@
+- `[x]` 1. File Structure Setup
+  - `[x]` Create `benchmarks/` and `benchmarks/results/` directories
+  - `[x]` Download OpenAPI specs (Petstore, GitHub, Discord, Stripe)
+- `[x]` 2. Benchmark Runner Implementation
+  - `[x]` Write `benchmarks/run_benchmark.py`
+  - `[x]` Script handles HTTP POST to `/api/upload`
+  - `[x]` Script handles SSE connection to `/api/jobs/{job_id}/stream`
+  - `[x]` Script tracks execution metrics and failure reasons
+- `[x]` 3. Execution & Reporting
+  - `[x]` Run `run_benchmark.py` against a local instance of the application
+  - `[x]` Investigate the Discord and Stripe failure: `ModuleNotFoundError: apiforge_sdk.client`
+  - `[x]` Generate `benchmarks/results/benchmark_report.md`
+  - `[x]` Generate `benchmarks/results/improvement_priority.md`
+- `[x]` 4. Root Cause Analysis
+  - `[x]` Trace ReliabilityManager.invoke() and log attempts
+  - `[x]` Generate `planner_root_cause_report.md`
+- `[x]` 5. Truth Audit
+  - `[x]` Benchmark all small specs (petstore, jsonplaceholder)
+  - `[x]` Produce `truth_audit.md`
+  - `[x]` Produce `interview_safe_description.md`
+- `[x]` 6. Validation Policy Audit
+  - `[x]` Reconcile benchmark methodology with historical success
+  - `[x]` Produce `benchmark_validation_report.md`
+  - `[x]` Perform design audit of validation strategy
+  - `[x]` Produce `validation_policy_audit.md`
