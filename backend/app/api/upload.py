@@ -32,7 +32,12 @@ async def upload_spec(request: Request, file: UploadFile = File(...), project_na
         raise HTTPException(status_code=422, detail=f"Not a valid OpenAPI spec: {' '.join(spec_errors)}")
 
     endpoints_data = extract_endpoints(parsed_json)
-    
+    if not endpoints_data:
+        raise HTTPException(
+            status_code=422,
+            detail="Spec has 'paths' but no GET/POST/PUT/DELETE/PATCH/OPTIONS/HEAD operations were found under any of them.",
+        )
+
     # Check if project exists or create new
     project = db.query(Project).filter(Project.name == project_name).first()
     if not project:
