@@ -10,8 +10,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+backend/lib/
+backend/lib64/
 parts/
 sdist/
 var/
@@ -73,3 +73,6 @@ backend/scripts/
 benchmarks/github.json
 benchmarks/stripe.json
 benchmarks/discord.json
+
+# Claude Code local-only settings (personal permission allowlist)
+.claude/settings.local.json
