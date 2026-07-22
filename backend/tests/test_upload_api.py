@@ -65,5 +65,16 @@ def test_spec_without_paths_is_rejected(client):
     res = _upload(client, json.dumps({"openapi": "3.0.0", "paths": {}}).encode())
     assert res.status_code == 422
 
+def test_spec_with_paths_but_no_operations_is_rejected(client):
+    spec = {"openapi": "3.0.0", "info": {"title": "t", "version": "1"}, "paths": {"/foo": {"parameters": []}}}
+    res = _upload(client, json.dumps(spec).encode())
+    assert res.status_code == 422
+    assert "operations" in res.json()["detail"]
+
+def test_oversized_file_is_rejected(client):
+    big = b"x" * (10 * 1024 * 1024 + 1)
+    res = _upload(client, big, name="huge.json")
+    assert res.status_code == 413
+
 def test_health_endpoint(client):
     assert client.get("/health").status_code == 200
