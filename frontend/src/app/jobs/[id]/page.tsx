@@ -44,16 +44,16 @@ const TERMINAL_SUCCESS = "SUCCESS";
 const TERMINAL_FAILURE = "FAILED_PERMANENTLY";
 
 const ENDPOINT_STATUS_STYLES: Record<string, string> = {
-  SUCCESS: "bg-green-100 text-green-700 border-green-200",
-  FAILED_PERMANENTLY: "bg-red-100 text-red-700 border-red-200",
-  FAILED: "bg-amber-100 text-amber-700 border-amber-200",
-  SCHEMA_FAILED: "bg-amber-100 text-amber-700 border-amber-200",
-  LINTER_FAILED: "bg-amber-100 text-amber-700 border-amber-200",
-  SCHEMA_VALIDATED: "bg-sky-100 text-sky-700 border-sky-200",
+  SUCCESS: "bg-green-500/8 text-green-700 border-green-500/15",
+  FAILED_PERMANENTLY: "bg-red-500/8 text-red-700 border-red-500/15",
+  FAILED: "bg-amber-500/8 text-amber-700 border-amber-500/15",
+  SCHEMA_FAILED: "bg-amber-500/8 text-amber-700 border-amber-500/15",
+  LINTER_FAILED: "bg-amber-500/8 text-amber-700 border-amber-500/15",
+  SCHEMA_VALIDATED: "bg-sky-500/8 text-sky-700 border-sky-500/15",
 };
 
 function endpointStyle(status?: string): string {
-  return ENDPOINT_STATUS_STYLES[status || ""] || "bg-zinc-100 text-zinc-600 border-zinc-200";
+  return ENDPOINT_STATUS_STYLES[status || ""] || "bg-zinc-500/6 text-zinc-600 border-zinc-500/12";
 }
 
 function computeSummary(logs: ExecutionLog[]) {
@@ -90,9 +90,9 @@ function computeSummary(logs: ExecutionLog[]) {
 
 function StatCard({ label, value, tone }: { label: string; value: string | number; tone?: string }) {
   return (
-    <div className="bg-white border border-zinc-200 rounded-xl px-4 py-3">
-      <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">{label}</p>
-      <p className={`text-2xl font-extrabold mt-0.5 ${tone || "text-zinc-900"}`}>{value}</p>
+    <div className="bg-zinc-50/70 border border-zinc-200/60 rounded-xl px-4 py-3">
+      <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wide">{label}</p>
+      <p className={`text-xl font-semibold mt-0.5 tabular-nums ${tone || "text-zinc-900"}`}>{value}</p>
     </div>
   );
 }
@@ -169,7 +169,7 @@ export default function JobTimeline() {
   if (loading) return (
     <>
       <Nav />
-      <div className="p-10 text-zinc-500">Loading timeline...</div>
+      <div className="min-h-screen bg-[#fafafa] p-10 text-sm text-zinc-400">Loading timeline…</div>
     </>
   );
 
@@ -182,36 +182,41 @@ export default function JobTimeline() {
   return (
     <>
       <Nav />
-      <div className="min-h-screen bg-zinc-50 text-zinc-900 py-12 px-6">
+      <div className="min-h-screen bg-[#fafafa] text-zinc-900 py-12 px-6">
         <div className="max-w-5xl mx-auto space-y-6">
 
           {/* Header */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-zinc-200 space-y-4">
+          <div className="bg-white p-6 rounded-2xl border border-zinc-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-12px_rgba(0,0,0,0.08)] space-y-5">
             <div className="flex justify-between items-start flex-wrap gap-4">
               <div>
-                <Link href="/dashboard" className="text-sm font-semibold text-blue-600 hover:underline mb-2 block">← Back to Dashboard</Link>
-                <h1 className="text-3xl font-extrabold tracking-tight">Execution Timeline</h1>
-                <p className="text-zinc-500 font-mono text-sm mt-1">Job: {id}</p>
+                <Link href="/dashboard" className="text-sm font-medium text-indigo-600 hover:text-indigo-700 mb-2 block">← Back to Dashboard</Link>
+                <h1 className="text-2xl font-semibold tracking-tight">Execution Timeline</h1>
+                <p className="text-zinc-400 font-mono text-xs mt-1.5">{id}</p>
                 {totalRuntimeMs !== null && (
-                  <p className="text-zinc-500 font-mono text-sm mt-1">
-                    Runtime: {totalRuntimeMs >= 1000 ? `${(totalRuntimeMs / 1000).toFixed(1)}s` : `${totalRuntimeMs}ms`}
+                  <p className="text-zinc-500 text-sm mt-1">
+                    Runtime <span className="font-mono">{totalRuntimeMs >= 1000 ? `${(totalRuntimeMs / 1000).toFixed(1)}s` : `${totalRuntimeMs}ms`}</span>
                   </p>
                 )}
               </div>
 
               <div className="text-right flex flex-col items-end gap-3">
-                <span className={`px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wider ${
-                  status === "SUCCESS" ? "bg-green-100 text-green-700" :
-                  status === "FAILED" ? "bg-red-100 text-red-700" :
-                  "bg-blue-100 text-blue-700 animate-pulse"
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide ${
+                  status === "SUCCESS" ? "bg-green-500/10 text-green-700" :
+                  status === "FAILED" ? "bg-red-500/10 text-red-700" :
+                  "bg-indigo-500/10 text-indigo-700"
                 }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    status === "SUCCESS" ? "bg-green-500" :
+                    status === "FAILED" ? "bg-red-500" :
+                    "bg-indigo-500 animate-pulse"
+                  }`} />
                   {status}
                 </span>
 
                 {status === "SUCCESS" && (
                   <a
                     href={getApiUrl(`/download/${id}`)}
-                    className="inline-flex items-center gap-2 bg-black hover:bg-zinc-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-md"
+                    className="inline-flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 shadow-[0_1px_2px_rgba(0,0,0,0.1),0_4px_12px_-4px_rgba(0,0,0,0.2)]"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                     Download SDK Artifact
@@ -221,7 +226,7 @@ export default function JobTimeline() {
             </div>
 
             {isRunning && streamNote && (
-              <div className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+              <div className="text-xs font-medium text-indigo-700 bg-indigo-500/5 border border-indigo-500/15 rounded-lg px-3 py-2">
                 {streamNote}
               </div>
             )}
@@ -229,13 +234,13 @@ export default function JobTimeline() {
             {/* Progress bar */}
             {summary.total > 0 && (
               <div>
-                <div className="flex justify-between text-xs font-semibold text-zinc-500 mb-1.5">
+                <div className="flex justify-between text-xs font-medium text-zinc-500 mb-1.5">
                   <span>{summary.succeeded + summary.failed} / {summary.total} endpoints complete</span>
-                  <span>{donePct}%</span>
+                  <span className="tabular-nums">{donePct}%</span>
                 </div>
-                <div className="h-2.5 w-full rounded-full bg-zinc-100 overflow-hidden flex">
-                  <div className="h-full bg-green-500 transition-all" style={{ width: `${succeededPct}%` }} />
-                  <div className="h-full bg-red-500 transition-all" style={{ width: `${failedPct}%` }} />
+                <div className="h-1.5 w-full rounded-full bg-zinc-100 overflow-hidden flex">
+                  <div className="h-full bg-green-500 transition-all duration-300" style={{ width: `${succeededPct}%` }} />
+                  <div className="h-full bg-red-500 transition-all duration-300" style={{ width: `${failedPct}%` }} />
                 </div>
               </div>
             )}
@@ -259,7 +264,7 @@ export default function JobTimeline() {
                   <span
                     key={i}
                     title={ep.agent_reasoning || ep.status}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold border ${endpointStyle(ep.status)}`}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-mono font-medium border ${endpointStyle(ep.status)}`}
                   >
                     {ep.method} {ep.path}
                     {ep.attempts ? <span className="opacity-60 ml-1">×{ep.attempts}</span> : null}
@@ -273,18 +278,18 @@ export default function JobTimeline() {
           <div>
             <button
               onClick={() => setShowGlossary((v) => !v)}
-              className="text-sm font-semibold text-zinc-500 hover:text-zinc-800 flex items-center gap-1.5"
+              className="text-sm font-medium text-zinc-500 hover:text-zinc-800 flex items-center gap-1.5 transition-colors"
             >
-              <span className={`transition-transform inline-block ${showGlossary ? "rotate-90" : ""}`}>›</span>
+              <span className={`transition-transform inline-block text-zinc-400 ${showGlossary ? "rotate-90" : ""}`}>›</span>
               What do these pipeline steps mean?
             </button>
             {showGlossary && (
               <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {PIPELINE_NODES.map((node) => (
-                  <div key={node.key} className="bg-white border border-zinc-200 rounded-xl p-4">
+                  <div key={node.key} className="bg-white border border-zinc-200/70 rounded-xl p-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`w-2.5 h-2.5 rounded-full ${NODE_DOT_COLOR[node.key] || "bg-zinc-500"}`} />
-                      <span className="text-sm font-bold">{node.label}</span>
+                      <span className={`w-2 h-2 rounded-full ${NODE_DOT_COLOR[node.key] || "bg-zinc-500"}`} />
+                      <span className="text-sm font-medium text-zinc-900">{node.label}</span>
                     </div>
                     <p className="text-xs text-zinc-500 leading-relaxed">{node.detail}</p>
                   </div>
@@ -294,7 +299,7 @@ export default function JobTimeline() {
           </div>
 
           {/* Timeline */}
-          <div className="space-y-6">
+          <div className="space-y-5">
             {logs.map((log, index) => {
               const activeIndex = log.state_delta?.active_endpoint_index;
               const ep = (activeIndex !== undefined && activeIndex !== null) ? (log.state_delta?.endpoints as EndpointInfo[] | undefined)?.[activeIndex as number] : undefined;
@@ -310,27 +315,27 @@ export default function JobTimeline() {
                 <div key={log.id} className="relative pl-8">
                   {/* Timeline Line */}
                   {index !== logs.length - 1 && (
-                    <div className="absolute left-[11px] top-8 bottom-[-24px] w-0.5 bg-zinc-200" />
+                    <div className="absolute left-[11px] top-8 bottom-[-22px] w-px bg-zinc-200" />
                   )}
 
                   {/* Timeline Dot */}
-                  <div className={`absolute left-0 top-3 w-6 h-6 rounded-full border-4 border-white shadow-sm flex items-center justify-center ${NODE_DOT_COLOR[log.node_name] || "bg-zinc-500"}`} />
+                  <div className={`absolute left-0 top-3 w-6 h-6 rounded-full border-4 border-[#fafafa] flex items-center justify-center ${NODE_DOT_COLOR[log.node_name] || "bg-zinc-500"}`} />
 
-                  <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200 hover:border-zinc-300 transition-colors">
+                  <div className="bg-white p-6 rounded-xl border border-zinc-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-[0_1px_2px_rgba(0,0,0,0.03),0_4px_16px_-8px_rgba(0,0,0,0.08)] hover:border-zinc-300/70 transition-all">
                     <div className="flex justify-between items-center mb-1.5">
-                      <h3 className="text-lg font-bold uppercase tracking-wider flex items-center gap-2">
-                        {info?.label || log.node_name} {method && path && <span className="text-zinc-500 text-sm normal-case font-mono ml-2">({method} {path})</span>}
+                      <h3 className="text-[13px] font-semibold uppercase tracking-wide flex items-center gap-2 text-zinc-900">
+                        {info?.label || log.node_name} {method && path && <span className="text-zinc-400 text-sm normal-case font-mono ml-2 font-normal">({method} {path})</span>}
 
                         {/* Success/Failure Icon */}
                         {failed ? (
-                          <span className="text-red-600 font-bold ml-1">✗</span>
+                          <span className="text-red-500 ml-0.5">✗</span>
                         ) : (
-                          <span className="text-green-600 font-bold ml-1">✓</span>
+                          <span className="text-green-500 ml-0.5">✓</span>
                         )}
 
                         {/* Duration */}
                         {log.duration_ms !== undefined && (
-                          <span className="text-xs text-zinc-500 font-mono ml-1 lowercase">
+                          <span className="text-xs text-zinc-400 font-mono font-normal ml-0.5 lowercase tracking-normal">
                             {log.duration_ms >= 1000 ? `${(log.duration_ms / 1000).toFixed(1)}s` : `${log.duration_ms}ms`}
                           </span>
                         )}
@@ -343,14 +348,14 @@ export default function JobTimeline() {
 
                     {/* Rendering specific node outputs */}
                     {log.node_name === "planner" && (
-                       <div className="text-zinc-600 text-sm italic border-l-2 border-purple-200 pl-4 py-1">
+                       <div className="text-zinc-500 text-sm italic border-l-2 border-purple-500/20 pl-4 py-1">
                           &quot;Planner initialized execution trace.&quot;
                        </div>
                     )}
 
                     {log.node_name === "sdk_validator" && (
                       errors && errors.length > 0 ? (
-                        <div className="bg-red-50 border border-red-100 p-3 rounded-lg text-xs font-mono text-red-800 whitespace-pre-wrap">
+                        <div className="bg-red-500/5 border border-red-500/15 p-3 rounded-lg text-xs font-mono text-red-700 whitespace-pre-wrap">
                           {errors.join("\n")}
                         </div>
                       ) : (
@@ -361,12 +366,12 @@ export default function JobTimeline() {
                     {log.node_name === "schema_validator" && ep && (
                       <div className="space-y-3">
                         {ep.validation_mode && (
-                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-sky-100 text-sky-700">
+                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-sky-500/10 text-sky-700">
                             {ep.validation_mode} validation
                           </span>
                         )}
                         {ep.execution_stderr && ep.status === "SCHEMA_FAILED" && (
-                          <pre className="bg-red-50 text-red-800 p-3 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre-wrap border border-red-100">
+                          <pre className="bg-red-500/5 text-red-700 p-3 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre-wrap border border-red-500/15">
                             {ep.execution_stderr}
                           </pre>
                         )}
@@ -375,7 +380,7 @@ export default function JobTimeline() {
 
                     {log.node_name === "test_linter" && ep && (
                       ep.status === "LINTER_FAILED" ? (
-                        <pre className="bg-red-50 text-red-800 p-3 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre-wrap border border-red-100">
+                        <pre className="bg-red-500/5 text-red-700 p-3 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre-wrap border border-red-500/15">
                           {ep.execution_stderr}
                         </pre>
                       ) : (
@@ -387,7 +392,7 @@ export default function JobTimeline() {
                       <div className="space-y-3">
                         <p className="text-sm text-zinc-600">{ep.agent_reasoning}</p>
                         {ep.generated_code && (
-                          <pre className="bg-zinc-900 text-zinc-100 p-4 rounded-lg text-xs overflow-x-auto font-mono leading-relaxed">
+                          <pre className="bg-zinc-950 text-zinc-100 p-4 rounded-lg text-xs overflow-x-auto font-mono leading-relaxed">
                             {ep.generated_code}
                           </pre>
                         )}
@@ -398,16 +403,16 @@ export default function JobTimeline() {
                       <div className="space-y-3">
                         {ep.execution_stdout && (
                           <div>
-                            <span className="text-xs font-bold text-zinc-500 uppercase">Stdout</span>
-                            <pre className="bg-black/5 text-zinc-800 p-3 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre-wrap mt-1">
+                            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Stdout</span>
+                            <pre className="bg-zinc-500/5 text-zinc-700 p-3 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre-wrap mt-1">
                               {ep.execution_stdout}
                             </pre>
                           </div>
                         )}
                         {ep.execution_stderr && (
                           <div>
-                            <span className="text-xs font-bold text-red-500 uppercase">Stderr</span>
-                            <pre className="bg-red-50 text-red-800 p-3 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre-wrap mt-1 border border-red-100">
+                            <span className="text-[11px] font-semibold text-red-500 uppercase tracking-wide">Stderr</span>
+                            <pre className="bg-red-500/5 text-red-700 p-3 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre-wrap mt-1 border border-red-500/15">
                               {ep.execution_stderr}
                             </pre>
                           </div>
@@ -416,9 +421,9 @@ export default function JobTimeline() {
                     )}
 
                     {log.node_name === "diagnoser" && ep?.diagnostic_feedback && (
-                      <div className="bg-orange-50 border border-orange-100 p-4 rounded-lg">
-                        <span className="text-xs font-bold text-orange-600 uppercase mb-2 block">Diagnostic Feedback</span>
-                        <p className="text-sm text-orange-900 font-medium">
+                      <div className="bg-orange-500/5 border border-orange-500/15 p-4 rounded-lg">
+                        <span className="text-[11px] font-semibold text-orange-600 uppercase tracking-wide mb-2 block">Diagnostic Feedback</span>
+                        <p className="text-sm text-orange-900/90 font-medium">
                           {ep.diagnostic_feedback}
                         </p>
                       </div>

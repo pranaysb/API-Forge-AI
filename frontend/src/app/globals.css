@@ -20,5 +20,8 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Was hardcoded to Arial, silently overriding the Geist font loaded in
+     layout.tsx (--font-geist-sans / the font-sans theme token below) —
+     the app never actually rendered in the intended typeface. */
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
 }

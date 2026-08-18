@@ -93,13 +93,13 @@ const NODE_DOT_COLOR: Record<string, string> = {
 };
 
 const METHOD_COLORS: Record<string, string> = {
-  GET: "bg-blue-100 text-blue-700",
-  POST: "bg-green-100 text-green-700",
-  PUT: "bg-amber-100 text-amber-700",
-  PATCH: "bg-orange-100 text-orange-700",
-  DELETE: "bg-red-100 text-red-700",
-  OPTIONS: "bg-zinc-100 text-zinc-700",
-  HEAD: "bg-zinc-100 text-zinc-700",
+  GET: "bg-blue-500/10 text-blue-700",
+  POST: "bg-green-500/10 text-green-700",
+  PUT: "bg-amber-500/10 text-amber-700",
+  PATCH: "bg-orange-500/10 text-orange-700",
+  DELETE: "bg-red-500/10 text-red-700",
+  OPTIONS: "bg-zinc-500/10 text-zinc-700",
+  HEAD: "bg-zinc-500/10 text-zinc-700",
 };
 
 export default function Home() {
@@ -172,39 +172,39 @@ export default function Home() {
   return (
     <>
       <Nav />
-      <main className="min-h-screen bg-zinc-50 text-zinc-900 py-16 px-4">
-        <div className="max-w-4xl mx-auto space-y-16">
+      <main className="min-h-screen bg-[#fafafa] text-zinc-900 py-20 px-4">
+        <div className="max-w-4xl mx-auto space-y-20">
           <div className="text-center space-y-4">
-            <h1 className="text-5xl font-extrabold tracking-tight">APIForge AI</h1>
-            <p className="text-xl text-zinc-600 max-w-2xl mx-auto leading-relaxed">
+            <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-zinc-900">APIForge AI</h1>
+            <p className="text-lg text-zinc-500 max-w-2xl mx-auto leading-relaxed">
               Upload your OpenAPI spec. Watch autonomous agents map dependencies, test every endpoint,
               self-heal bugs, and generate a production-ready Python SDK — live, in your browser.
             </p>
           </div>
 
           {/* Upload card */}
-          <div className="max-w-xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-zinc-200">
+          <div className="max-w-xl mx-auto bg-white p-8 rounded-2xl border border-zinc-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-12px_rgba(0,0,0,0.08)]">
             <form onSubmit={handleUpload} className="space-y-5">
               <div>
-                <label className="block text-sm font-semibold text-zinc-800 mb-2">Project name</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">Project name</label>
                 <input
                   type="text"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                   placeholder="Demo Project"
-                  className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-zinc-400"
+                  className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 transition-shadow"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-zinc-800 mb-2">OpenAPI Spec (JSON/YAML)</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">OpenAPI Spec (JSON/YAML)</label>
                 <div
                   onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                   onDragLeave={() => setIsDragging(false)}
                   onDrop={onDrop}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`rounded-xl border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${
-                    isDragging ? "border-black bg-zinc-50" : "border-zinc-200 hover:border-zinc-300"
+                  className={`rounded-xl border p-8 text-center cursor-pointer transition-all ${
+                    isDragging ? "border-indigo-300 bg-indigo-50/40 ring-2 ring-indigo-500/10" : "border-dashed border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50/50"
                   }`}
                 >
                   <input
@@ -239,11 +239,11 @@ export default function Home() {
                 {/* Client-side preview / validation feedback */}
                 {preview && (
                   <div className={`mt-3 rounded-lg p-3 text-xs border ${
-                    preview.valid ? "bg-green-50 border-green-100 text-green-800" : "bg-red-50 border-red-100 text-red-700"
+                    preview.valid ? "bg-green-500/5 border-green-500/15 text-green-800" : "bg-red-500/5 border-red-500/15 text-red-700"
                   }`}>
                     {preview.valid ? (
                       <div className="space-y-1.5">
-                        <p className="font-semibold">
+                        <p className="font-medium">
                           ✓ {preview.title || "Spec detected"}{preview.version ? ` (v${preview.version})` : ""}
                           {preview.endpointCount !== undefined && ` — ${preview.endpointCount} endpoint${preview.endpointCount === 1 ? "" : "s"} found`}
                         </p>
@@ -251,7 +251,7 @@ export default function Home() {
                         {preview.methods && preview.methods.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 pt-1">
                             {preview.methods.slice(0, 12).map((m, i) => (
-                              <span key={i} className={`px-1.5 py-0.5 rounded font-mono font-semibold ${METHOD_COLORS[m.method] || "bg-zinc-100 text-zinc-700"}`}>
+                              <span key={i} className={`px-1.5 py-0.5 rounded font-mono font-medium ${METHOD_COLORS[m.method] || "bg-zinc-500/10 text-zinc-700"}`}>
                                 {m.method} {m.path}
                               </span>
                             ))}
@@ -262,7 +262,7 @@ export default function Home() {
                         )}
                       </div>
                     ) : (
-                      <p className="font-semibold">✗ {preview.warning}</p>
+                      <p className="font-medium">✗ {preview.warning}</p>
                     )}
                   </div>
                 )}
@@ -271,7 +271,7 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={!file || isUploading || preview?.valid === false}
-                className="w-full py-3 px-4 bg-black hover:bg-zinc-800 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-lg"
+                className="w-full py-3 px-4 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white font-medium rounded-xl transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100 flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.1),0_4px_12px_-4px_rgba(0,0,0,0.2)]"
               >
                 {isUploading ? (
                   <span className="flex items-center gap-2">
@@ -281,7 +281,7 @@ export default function Home() {
                 ) : "Forge SDK"}
               </button>
               {error && (
-                <div className="p-4 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100 font-medium">
+                <div className="p-4 bg-red-500/5 text-red-700 rounded-lg text-sm border border-red-500/15 font-medium">
                   {error}
                 </div>
               )}
@@ -290,18 +290,18 @@ export default function Home() {
 
           {/* How it works */}
           <div>
-            <h2 className="text-center text-2xl font-bold mb-2">How it works</h2>
+            <h2 className="text-center text-2xl font-semibold tracking-tight mb-2">How it works</h2>
             <p className="text-center text-zinc-500 text-sm mb-8 max-w-xl mx-auto">
               Every endpoint moves through this pipeline independently. Failures loop back to the Diagnoser,
               which patches the SDK in memory and retries — up to 5 attempts — before moving on.
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {PIPELINE_NODES.map((node, i) => (
-                <div key={node.key} className="bg-white border border-zinc-200 rounded-xl p-4 relative">
+                <div key={node.key} className="bg-white border border-zinc-200/70 rounded-xl p-4 relative shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-[0_1px_2px_rgba(0,0,0,0.03),0_4px_12px_-6px_rgba(0,0,0,0.08)] transition-shadow">
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className={`w-2.5 h-2.5 rounded-full ${NODE_DOT_COLOR[node.key] || "bg-zinc-500"}`} />
-                    <span className="text-xs font-bold text-zinc-400">{i + 1}</span>
-                    <span className="text-sm font-bold">{node.label}</span>
+                    <span className={`w-2 h-2 rounded-full ${NODE_DOT_COLOR[node.key] || "bg-zinc-500"}`} />
+                    <span className="text-[11px] font-medium text-zinc-400 tabular-nums">{i + 1}</span>
+                    <span className="text-sm font-medium text-zinc-900">{node.label}</span>
                   </div>
                   <p className="text-xs text-zinc-500 leading-relaxed">{node.short}</p>
                 </div>
