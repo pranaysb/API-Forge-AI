@@ -13,6 +13,28 @@ We welcome contributions! Please follow the guidelines below to ensure a smooth 
 3. Make your changes and run existing tests. If you create new scripts to test behavior, please place them in `backend/scripts/` (these are ignored by git to keep history clean).
 4. Do not commit temporary `.pyc` caches, `.log` files, or generated zip artifacts. Our `.gitignore` should catch most of these, but please be mindful.
 
+## Running Tests
+
+Backend unit tests (no API keys or network required):
+```bash
+cd backend
+poetry run pytest
+```
+
+Frontend lint, type-check, and build:
+```bash
+cd frontend
+npm run lint
+npx tsc --noEmit
+npm run build
+```
+
+End-to-end benchmarks against a running backend (requires `GROQ_API_KEY` in `backend/.env`):
+```bash
+cd backend && poetry run uvicorn app.main:app --port 8000  # terminal 1
+cd benchmarks && python run_benchmark.py                   # terminal 2
+```
+
 ## Pull Requests
 - Ensure your commits are logically structured (e.g. separate your schema updates from your UI updates).
 - Reference any open issues in your PR description.

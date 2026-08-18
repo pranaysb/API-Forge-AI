@@ -12,12 +12,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* This UI is a light-only design (explicit zinc/white classes throughout) —
+   it doesn't have a dark palette, so we don't flip --foreground/--background
+   on prefers-color-scheme. Doing so previously made unstyled text (e.g. the
+   nav logo) render near-white against light backgrounds. */
 
 body {
   background: var(--background);

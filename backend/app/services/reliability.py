@@ -115,6 +115,20 @@ class ReliabilityManager:
                             print(f"[MODEL FALLBACK]\nOld model: {old_model}\nNew model: None (Exhausted)")
                     
                     continue # Retry loop
+                elif "parse" in error_str or "validation" in error_str or "outputparserexception" in error_str or "tool_use_failed" in error_str or "failed to call a function" in error_str:
+                    print(f"[PARSING ERROR] Retrying structured output. Error: {e}")
+                    attempts += 1
+                    attempts_for_current_model += 1
+                    if attempts_for_current_model >= 3:
+                        old_model = current_model
+                        model_idx += 1
+                        model_failovers += 1
+                        attempts_for_current_model = 0
+                        key_idx = 0
+                        if model_idx < len(cls.MODELS):
+                            new_model = cls.MODELS[model_idx]
+                            print(f"[MODEL FALLBACK due to parsing]\nOld model: {old_model}\nNew model: {new_model}")
+                    continue # Retry loop
                 else:
                     # Non-rate-limit exception
                     raise e

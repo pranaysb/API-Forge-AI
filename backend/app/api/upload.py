@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.models.domain import Project, IntegrationJob
-from app.services.openapi_parser import parse_spec_content, extract_endpoints
+from app.services.openapi_parser import parse_spec_content, extract_endpoints, validate_openapi_spec
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -27,8 +27,17 @@ async def upload_spec(request: Request, file: UploadFile = File(...), project_na
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
 
+    spec_errors = validate_openapi_spec(parsed_json)
+    if spec_errors:
+        raise HTTPException(status_code=422, detail=f"Not a valid OpenAPI spec: {' '.join(spec_errors)}")
+
     endpoints_data = extract_endpoints(parsed_json)
-    
+    if not endpoints_data:
+        raise HTTPException(
+            status_code=422,
+            detail="Spec has 'paths' but no GET/POST/PUT/DELETE/PATCH/OPTIONS/HEAD operations were found under any of them.",
+        )
+
     # Check if project exists or create new
     project = db.query(Project).filter(Project.name == project_name).first()
     if not project:
