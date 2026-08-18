@@ -4,16 +4,16 @@
     {
       "name": "backend",
       "runtimeExecutable": "poetry",
-      "runtimeArgs": ["run", "uvicorn", "app.main:app", "--reload", "--port", "8000"],
+      "runtimeArgs": ["run", "uvicorn", "app.main:app", "--reload", "--port", "8010"],
       "cwd": "backend",
-      "port": 8000
+      "port": 8010
     },
     {
       "name": "frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": ["run", "dev", "--", "-p", "3010"],
       "cwd": "frontend",
-      "port": 3000
+      "port": 3010
     }
   ]
 }

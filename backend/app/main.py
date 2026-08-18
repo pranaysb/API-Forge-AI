@@ -54,6 +54,9 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        # Alternate local dev port (used when 3000 is taken by another project)
+        "http://localhost:3010",
+        "http://127.0.0.1:3010",
         os.getenv("FRONTEND_URL", "https://apiforge.ai")
     ],
     allow_credentials=True,
